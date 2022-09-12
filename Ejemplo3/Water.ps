@@ -1,0 +1,87 @@
+////////////////////////////////////////////////////////////////////////////////
+// Filename: Water.ps
+////////////////////////////////////////////////////////////////////////////////
+#version 400
+
+
+in vec2 texCoord;
+in vec3 normal;
+in mat3 TBN;
+in vec3 light;
+
+out vec4 outputColor;
+
+uniform sampler2D shaderTexture;
+uniform sampler2D shaderTexture2;
+uniform vec3 lightDirection;
+uniform vec4 diffuseLightColor;
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Pixel Shader - Water Shader - Ambient Light - Diffuse Light - Especular Light
+////////////////////////////////////////////////////////////////////////////////
+void main(void)
+{
+	vec4 textureColor;
+	vec3 bump;
+	vec3 NewNormal;
+	vec3 normalaza;
+	vec3 lightDir;
+	float lightIntensity;
+	float factAtAmb = 0.1f;
+	float factAtDif = 1.0f;
+	int esc = 50;
+
+
+	// Obtener la textura difusa o de color
+	textureColor = texture(shaderTexture, texCoord);
+	
+	//obtener el mapa de normales
+	bump = vec3(texture(shaderTexture2, esc * texCoord)); //llevaba.rgb
+	//el mapa de normales va de 0 a 1 o sea de 0 a 90 grados, debe pasar de -1 a 1 y -90 a 90 grados
+	bump = 2.0 * bump - vec3(1.0,1.0,1.0);
+	//afectar el mapa de normales a la nueva posicion mundial
+	NewNormal = TBN * bump; 
+	//normalizamos la normal y la multiplicamos por el vector de luz para generar sombras
+    NewNormal = normalize(NewNormal);
+
+	// Invertimos la direccion de la luz para calculos.
+	lightDir = -lightDirection;
+
+	// Calcula el monto de luz segun el vector de luz y la normal de la textura.
+	lightIntensity = clamp(dot(NewNormal, lightDir), 0.0f, 1.0f);
+	
+	// Determine el monto de luz de color segun la resultante con la normal.
+	outputColor =  clamp((diffuseLightColor * lightIntensity), 0.0f, 1.0f);
+
+
+	////// Aportación Ambiental
+
+	vec4 LuzAmbiental = vec4(1.0, 1.0, 1.0, 1);
+	vec4 AportAmb = LuzAmbiental * factAtAmb;
+
+	/////// Aportación Difusa
+	
+	float factAtLambert = dot(normal, light);
+	vec4 textureNorm = texture(shaderTexture2, esc * texCoord);
+
+	textureNorm = 2 * textureNorm - 1;
+	textureNorm.y = -textureNorm.y;
+	vec3 bumpNorm = normalize(TBN * vec3(textureNorm));
+	float diff = clamp(dot(-light, bumpNorm), 0.0, 1.0);
+	vec4 AportDif = diffuseLightColor * diff * factAtDif;
+
+	////////// Aportación Especular
+
+	vec4 LuzEspecular = vec4(1, 1, 1, 1);
+	float factAtEsp = 10.0;
+	float factBrillantez = 100;
+	vec3 reflejo = normalize(reflect(light, bumpNorm));
+	vec3 Campos = vec3(0, 30, 40);
+	float especularidad = pow(max(dot(reflejo, -normalize(Campos)), 0.0), factBrillantez);
+	vec4 AportEspc = LuzEspecular * factAtEsp * especularidad;
+
+
+	// Multiplica la textura color final.
+	outputColor = textureColor * (AportAmb + AportDif + AportEspc); 
+	}

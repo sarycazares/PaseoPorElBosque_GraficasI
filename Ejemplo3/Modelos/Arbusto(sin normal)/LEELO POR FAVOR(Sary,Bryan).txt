@@ -1,0 +1,3 @@
+La textura es "Color_Arbusto"
+este modelo no tiene textura normal asi que no se
+si quieren cambiar el modelo de arbusto.
